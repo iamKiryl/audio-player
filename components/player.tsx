@@ -19,7 +19,6 @@ export default function Player() {
   const [volume, setVolume] = useState(70)
   const [currentTime, setCurrentTime] = useState(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const [wheelAngle, setWheelAngle] = useState(0)
   const [menuActive, setMenuActive] = useState(true)
   const [allSongScreen, setAllSongsScreen] = useState(false)
 
@@ -71,7 +70,6 @@ export default function Player() {
     const centerX = rect.left + rect.width / 2
     const centerY = rect.top + rect.height / 2
     const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI)
-    setWheelAngle(angle)
 
     if (angle > -90 && angle < 90) {
       setVolume((prev) => Math.min(prev + 1, 100))

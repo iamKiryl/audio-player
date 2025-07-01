@@ -24,6 +24,8 @@ export default function Player() {
 
   const [tracks, setTrack] = useState<Track[]>([])
 
+  const duration = tracks[currentTrack]?.duration ?? 1
+
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
@@ -178,7 +180,7 @@ export default function Player() {
                   <div className="w-full mt-4 bg-gray-600 h-1 rounded-full overflow-hidden">
                     <div
                       className="bg-white h-full"
-                      style={{ width: `${(currentTime / tracks[currentTrack]?.duration) * 100}%` }}
+                      style={{ width: `${(currentTime / duration) * 100}%` }}
                     />
                   </div>
                   <div className="w-full flex justify-between text-xs mt-1">

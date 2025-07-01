@@ -124,11 +124,11 @@ export default function Player() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="w-full max-w-[320px] bg-gradient-to-b from-gray-100 to-gray-200 rounded-[30px] shadow-xl overflow-hidden border-2 border-gray-300">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-2 sm:p-4">
+      <div className="w-full max-w-[280px] sm:max-w-[320px] md:max-w-[400px] bg-gradient-to-b from-gray-100 to-gray-200 rounded-[30px] shadow-xl overflow-hidden border-2 border-gray-300">
 
-        <div className="bg-white mx-4 mt-4 rounded-lg p-3 shadow-inner">
-          <div className="bg-gray-800 rounded-md p-3 h-[180px] text-white">
+        <div className="bg-white mx-2 sm:mx-4 mt-4 rounded-lg p-3 shadow-inner">
+          <div className="bg-gray-800 rounded-md p-3 h-[150px] sm:h-[180px] md:h-[200px] text-white">
             {menuActive ? (
               <div className="h-full flex flex-col">
                 <h3 className="text-center font-semibold text-sm mb-2 bg-blue-500 py-1 rounded">Music Menu</h3>
@@ -208,41 +208,41 @@ export default function Player() {
           </div>
         </div>
 
-        <div className="mt-4 mb-6 mx-auto w-[220px] h-[220px] relative">
+        <div className="mt-4 mb-6 mx-auto w-[180px] h-[180px] sm:w-[220px] sm:h-[220px] md:w-[260px] md:h-[260px] relative">
           <div
             className="absolute inset-0 rounded-full bg-gray-200 shadow-inner cursor-pointer"
             onMouseMove={handleWheelRotation}
           />
 
           <div
-            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[80px] h-[80px] rounded-full bg-gray-300 flex items-center justify-center cursor-pointer"
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] md:w-[90px] md:h-[90px] rounded-full bg-gray-300 flex items-center justify-center cursor-pointer"
             onClick={handlePlayPause}
           >
             {isPlaying ? <Pause size={24} /> : <Play size={24} />}
           </div>
 
           <div
-            className="absolute top-[30px] left-1/2 transform -translate-x-1/2 text-sm font-medium cursor-pointer"
+            className="absolute top-[20px] sm:top-[30px] left-1/2 transform -translate-x-1/2 text-sm font-medium cursor-pointer"
             onClick={handleMenuClick}
           >
             MENU
           </div>
 
           <div
-            className="absolute top-1/2 right-[30px] transform -translate-y-1/2 cursor-pointer"
+            className="absolute top-1/2 right-[20px] sm:right-[30px] transform -translate-y-1/2 cursor-pointer"
             onClick={handleNextTrack}
           >
             <SkipForward size={20} />
           </div>
 
           <div
-            className="absolute top-1/2 left-[30px] transform -translate-y-1/2 cursor-pointer"
+            className="absolute top-1/2 left-[20px] sm:left-[30px] transform -translate-y-1/2 cursor-pointer"
             onClick={handlePrevTrack}
           >
             <SkipBack size={20} />
           </div>
 
-          <div className="absolute bottom-[30px] left-1/2 transform -translate-x-1/2 flex items-center gap-1">
+          <div className="absolute bottom-[20px] sm:bottom-[30px] left-1/2 transform -translate-x-1/2 flex items-center gap-1">
             <Volume2 size={16} />
             <span className="text-xs">{volume}%</span>
           </div>

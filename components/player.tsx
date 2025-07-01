@@ -92,18 +92,33 @@ export default function Player() {
     setAllSongsScreen(true)
   }
 
-  const handleUploadTrack = async (event: React.ChangeEvent<HTMLInputElement>) => {
-      if (event.target?.files) {
-          const files = event.target?.files;
-          Array.from(files).map(async (el) => {
-              const nextId = tracks.length === 0 ? 1 : tracks[tracks.length - 1].id + 1
-              const audio = new Audio(URL.createObjectURL(el));
+  const handleUploadTrack = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (event.target?.files) {
+      const files = event.target.files
+      Array.from(files).forEach((el) => {
+        const nextId =
+          tracks.length === 0 ? 1 : tracks[tracks.length - 1].id + 1
+        const objectUrl = URL.createObjectURL(el)
+        const audio = new Audio(objectUrl)
 
-              audio.onloadedmetadata = () => {
-                setTrack(prevTracks => [...prevTracks, {title: el?.name, src: URL.createObjectURL(el), duration: audio.duration, artist: 'Unnown', id: nextId}])
-              }
-          })
-      }
+        audio.onloadedmetadata = () => {
+          setTrack((prevTracks) => [
+            ...prevTracks,
+            {
+              title: el.name,
+              src: objectUrl,
+              duration: audio.duration,
+              artist: "Unknown",
+              id: nextId,
+            },
+          ])
+
+          URL.revokeObjectURL(objectUrl)
+        }
+      })
+    }
   }
 
   return (

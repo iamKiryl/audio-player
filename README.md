@@ -38,3 +38,11 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## Mobile Support
 
 The audio player layout uses responsive Tailwind CSS classes so it adapts to smaller screens automatically. When viewed on phones, control sizes and spacing scale down for a comfortable mobile experience.
+
+## Playing local files
+
+Songs are picked from your computer with **Add new song** and played straight from the browser; nothing is uploaded. After a page reload the songs need to be picked again.
+
+- The queue plays in order and stops after the last track. Next/Previous wrap around.
+- Drag around the wheel to change volume (clockwise is louder); with the wheel focused, arrow keys change it in steps of 5.
+- Files that can't be read are skipped and listed at the bottom of the screen.

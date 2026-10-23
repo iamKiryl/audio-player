@@ -44,5 +44,6 @@ The audio player layout uses responsive Tailwind CSS classes so it adapts to sma
 Songs are picked from your computer with **Add new song** and played straight from the browser; nothing is uploaded. After a page reload the songs need to be picked again.
 
 - The queue plays in order and stops after the last track. Next/Previous wrap around.
+- Click, tap, or drag the playback progress bar to seek within a song. When focused, arrow keys seek by 5 seconds; Home/End jump to the start/end. Seeking keeps paused tracks paused.
 - Drag around the wheel to change volume (clockwise is louder); with the wheel focused, arrow keys change it in steps of 5.
 - Files that can't be read are skipped and listed at the bottom of the screen.

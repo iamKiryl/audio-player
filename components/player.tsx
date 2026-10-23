@@ -52,6 +52,7 @@ export default function Player() {
     next,
     previous,
     selectTrack,
+    seek,
     setVolume,
     changeVolume,
   } = useAudioPlayer()
@@ -60,7 +61,9 @@ export default function Player() {
   const wheelGestureRef = useRef<{ pointerId: number; angle: number; carry: number } | null>(null)
 
   const duration = currentTrack?.duration ?? 0
-  const progress = Number.isFinite(duration) && duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
+  const seekableDuration = Number.isFinite(duration) && duration > 0 ? duration : 0
+  const position = Math.max(0, Math.min(currentTime, seekableDuration))
+  const progress = seekableDuration > 0 ? (position / seekableDuration) * 100 : 0
   const hasTrack = currentTrack !== null
 
   const handleAddFiles = (files: File[]) => {
@@ -196,8 +199,36 @@ export default function Player() {
                   <div className="flex-1 flex flex-col items-center justify-center">
                     <h2 className="font-bold text-center mb-1">{currentTrack ? currentTrack.title : "Add your music"}</h2>
                     <p className="text-sm text-gray-300 text-center">{currentTrack?.artist ?? ""}</p>
-                    <div className="w-full mt-4 bg-gray-600 h-1 rounded-full overflow-hidden">
-                      <div className="bg-white h-full" style={{ width: `${progress}%` }} />
+                    <div className="relative w-full mt-4 rounded-full focus-within:ring-2 focus-within:ring-blue-500">
+                      <div className="bg-gray-600 h-1 rounded-full overflow-hidden">
+                        <div className="bg-white h-full" style={{ width: `${progress}%` }} />
+                      </div>
+                      <input
+                        type="range"
+                        aria-label="Playback position"
+                        aria-valuetext={`${formatTime(position)} of ${formatTime(seekableDuration)}`}
+                        min={0}
+                        max={seekableDuration}
+                        step="any"
+                        value={position}
+                        disabled={!hasTrack || seekableDuration === 0}
+                        onChange={(event) => seek(event.currentTarget.valueAsNumber)}
+                        onKeyDown={(event) => {
+                          const targets: Record<string, number> = {
+                            ArrowLeft: position - 5,
+                            ArrowDown: position - 5,
+                            ArrowRight: position + 5,
+                            ArrowUp: position + 5,
+                            Home: 0,
+                            End: seekableDuration,
+                          }
+                          if (event.key in targets) {
+                            event.preventDefault()
+                            seek(targets[event.key])
+                          }
+                        }}
+                        className="absolute inset-x-0 -top-2 h-5 w-full cursor-pointer opacity-0 disabled:cursor-default"
+                      />
                     </div>
                     <div className="w-full flex justify-between text-xs mt-1">
                       <span>{formatTime(currentTime)}</span>

@@ -28,6 +28,7 @@ def lambda_handler(event, context):
             "Content-Type": "application/json"
         },
         "body": json.dumps({
-            "sessionId": session_id
+            "sessionId": session_id,
+            "requestId": context.aws_request_id
         })
     }

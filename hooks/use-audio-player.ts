@@ -147,6 +147,17 @@ export function useAudioPlayer() {
     [loadTrack],
   )
 
+  const seek = useCallback((seconds: number) => {
+    const audio = audioRef.current
+    if (!audio || !currentIdRef.current || !Number.isFinite(seconds)) return
+    // Seek only once this audio element has loaded the current track's metadata.
+    if (audio.readyState === 0 || !Number.isFinite(audio.duration) || audio.duration <= 0) return
+
+    const position = Math.max(0, Math.min(seconds, audio.duration))
+    audio.currentTime = position
+    setCurrentTime(position)
+  }, [])
+
   const setVolume = useCallback((value: number) => {
     const clamped = Math.round(Math.min(100, Math.max(0, value)))
     volumeRef.current = clamped
@@ -290,6 +301,7 @@ export function useAudioPlayer() {
     next,
     previous,
     selectTrack,
+    seek,
     setVolume,
     changeVolume,
   }

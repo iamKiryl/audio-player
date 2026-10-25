@@ -63,7 +63,7 @@ npm run dev -- --hostname 0.0.0.0
 
 Open `http://<LAPTOP_LAN_IP>:3000` on the laptop and phone in the same Wi-Fi network. Localhost on a phone refers to the phone itself. The laptop's firewall must allow this development server. Use the actual origin in CORS above.
 
-Select local tracks, press **Play on the laptop first**, then click **Создать пульт**. The player keeps its host credentials only in page memory and displays `/remote/<sessionId>#token=<remoteToken>` using its current frontend origin. Select the read-only field to copy the link manually; Clipboard API is not required. Never share the link publicly. Reloading the player requires selecting music and creating a new session.
+Select local tracks, press **Play on the laptop first**, then open **Music Menu → Remote control** (phone icon) and click **Создать пульт**. Creation, status and the link are shown inside the player's display; use **MENU** to return to the menu. Switching screens keeps the session active. The player keeps its host credentials only in page memory and displays `/remote/<sessionId>#token=<remoteToken>` using its current frontend origin. Select the read-only field to copy the link manually; Clipboard API is not required. Never share the link publicly. Reloading the player requires selecting music and creating a new session.
 
 ## Phone remote and request flow
 

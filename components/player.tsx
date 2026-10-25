@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef } from "react"
-import { Play, Pause, SkipForward, SkipBack, Volume2, Plus } from "lucide-react"
+import { Play, Pause, SkipForward, SkipBack, Volume2, Plus, Smartphone } from "lucide-react"
 import { useAudioPlayer } from "@/hooks/use-audio-player"
 import { usePlayerSession } from "@/hooks/use-player-session"
 
@@ -12,6 +12,7 @@ const DEGREES_PER_VOLUME_STEP = 3.6
 const KEYBOARD_VOLUME_STEP = 5
 
 const focusRing = "outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+const menuButton = `w-full text-left rounded px-2 py-0.5 cursor-pointer enabled:hover:bg-blue-500 focus-visible:bg-blue-500 disabled:cursor-default disabled:opacity-50 ${focusRing}`
 const wheelButton = `cursor-pointer disabled:cursor-default disabled:opacity-40 rounded-full ${focusRing}`
 
 function formatTime(seconds: number) {
@@ -60,7 +61,7 @@ export default function Player() {
     changeVolume,
   } = audioPlayer
   const [menuActive, setMenuActive] = useState(true)
-  const [allSongScreen, setAllSongsScreen] = useState(false)
+  const [screen, setScreen] = useState<"nowPlaying" | "songs" | "remote">("nowPlaying")
   const wheelGestureRef = useRef<{ pointerId: number; angle: number; carry: number } | null>(null)
 
   const duration = currentTrack?.duration ?? 0
@@ -132,12 +133,17 @@ export default function Player() {
 
   const handleNowPlayingClick = () => {
     setMenuActive(false)
-    setAllSongsScreen(false)
+    setScreen("nowPlaying")
   }
 
   const handleAllSongsClick = () => {
     setMenuActive(false)
-    setAllSongsScreen(true)
+    setScreen("songs")
+  }
+
+  const handleRemoteClick = () => {
+    setMenuActive(false)
+    setScreen("remote")
   }
 
   return (
@@ -154,7 +160,7 @@ export default function Player() {
                     <li>
                       <button
                         type="button"
-                        className={`w-full text-left hover:bg-blue-500 focus-visible:bg-blue-500 px-2 py-0.5 rounded cursor-pointer ${focusRing}`}
+                        className={menuButton}
                         onClick={handleNowPlayingClick}
                       >
                         Now Playing
@@ -164,15 +170,59 @@ export default function Player() {
                     <li>
                       <button
                         type="button"
-                        className={`w-full text-left hover:bg-blue-500 focus-visible:bg-blue-500 px-2 py-0.5 rounded cursor-pointer ${focusRing}`}
+                        className={menuButton}
                         onClick={handleAllSongsClick}
                       >
                         Songs
                       </button>
                     </li>
+                    <li>
+                      <button
+                        type="button"
+                        className={`${menuButton} flex items-center gap-1`}
+                        onClick={handleRemoteClick}
+                      >
+                        Remote control
+                        <Smartphone aria-hidden="true" className="w-5 h-5 shrink-0" />
+                      </button>
+                    </li>
                   </ul>
                 </div>
-              ) : allSongScreen ? (
+              ) : screen === "remote" ? (
+                <div className="h-full min-h-0 flex flex-col">
+                  <h3 className="flex items-center justify-center gap-1 shrink-0 font-semibold text-sm mb-2 bg-blue-500 py-1 rounded">
+                    <Smartphone aria-hidden="true" className="w-4 h-4" />
+                    Remote control
+                  </h3>
+                  <div className="min-h-0 flex-1 overflow-y-auto space-y-2 text-xs">
+                    <button
+                      type="button"
+                      disabled={!remote.canCreate}
+                      onClick={() => { void remote.create() }}
+                      className={menuButton}
+                    >
+                      {remote.status === "creating" ? "Создание…" : remote.canCreate ? "Создать пульт" : "Пульт создан"}
+                    </button>
+                    <p role="status" className="text-gray-300">{{ idle: "Пульт не создан", creating: "Создание сессии", syncing: "Подключение плеера", connected: "Плеер синхронизирован", retrying: "Нет связи — повторяем", ended: "Сессия завершена" }[remote.status]}</p>
+                    {remote.error && <p role="alert" className="text-red-300">{remote.error}</p>}
+                    {remote.remoteUrl ? (
+                      <label className="block">
+                        Ссылка для телефона:
+                        <input
+                          aria-label="Ссылка пульта"
+                          readOnly
+                          value={remote.remoteUrl}
+                          onFocus={(event) => event.currentTarget.select()}
+                          className={`mt-1 w-full rounded border border-gray-600 bg-gray-900 p-1.5 text-white ${focusRing}`}
+                        />
+                        <span className="mt-1 block text-gray-300">Выделите ссылку и скопируйте на телефон.</span>
+                      </label>
+                    ) : (
+                      <p className="text-gray-300">Сначала нажмите Play на ноутбуке. Для телефона откройте плеер по LAN-адресу ноутбука.</p>
+                    )}
+                  </div>
+                </div>
+              ) : screen === "songs" ? (
                 <div className="h-full flex flex-col">
                   <ul className="text-sm space-y-1 overflow-y-auto min-h-0 flex-1">
                     {tracks.length > 0 ? (
@@ -308,32 +358,6 @@ export default function Player() {
             <Volume2 size={16} />
             <span className="text-xs">{volume}%</span>
           </div>
-        </div>
-
-        <div className="mx-4 mb-5 space-y-2 text-xs text-gray-700">
-          <button
-            type="button"
-            disabled={!remote.canCreate}
-            onClick={() => { void remote.create() }}
-            className={`rounded bg-blue-500 px-3 py-2 text-white disabled:opacity-50 ${focusRing}`}
-          >
-            {remote.status === "creating" ? "Создание…" : "Создать пульт"}
-          </button>
-          <p role="status">{{ idle: "Пульт не создан", creating: "Создание сессии", syncing: "Подключение плеера", connected: "Плеер синхронизирован", retrying: "Нет связи — повторяем", ended: "Сессия завершена" }[remote.status]}</p>
-          {remote.error && <p role="alert" className="text-red-700">{remote.error}</p>}
-          {remote.remoteUrl && (
-            <label className="block">
-              Ссылка для телефона (выделите и скопируйте):
-              <input
-                aria-label="Ссылка пульта"
-                readOnly
-                value={remote.remoteUrl}
-                onFocus={(event) => event.currentTarget.select()}
-                className={`mt-1 w-full rounded border border-gray-300 bg-white p-2 ${focusRing}`}
-              />
-            </label>
-          )}
-          <p>Сначала запустите музыку кнопкой Play на ноутбуке. Для телефона откройте плеер по LAN-адресу ноутбука.</p>
         </div>
       </div>
     </div>

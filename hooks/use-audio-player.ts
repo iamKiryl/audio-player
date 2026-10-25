@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { MAX_POSITION_MS, type PlayerState } from "@/lib/player-api"
 
 export interface Track {
   id: string
@@ -65,6 +66,19 @@ export function useAudioPlayer() {
   const urlsRef = useRef(new Map<string, string>())
   const nextIdRef = useRef(1)
   const importQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const statusRef = useRef<PlaybackStatus>("idle")
+  const errorRef = useRef<string | null>(null)
+  const playAttemptRef = useRef(0)
+  const metadataIdRef = useRef<string | null>(null)
+
+  const updateStatus = useCallback((value: PlaybackStatus) => {
+    statusRef.current = value
+    setStatus(value)
+  }, [])
+  const updateError = useCallback((value: string | null) => {
+    errorRef.current = value
+    setError(value)
+  }, [])
 
   const urlFor = useCallback((track: Track) => {
     let url = urlsRef.current.get(track.id)
@@ -75,29 +89,59 @@ export function useAudioPlayer() {
     return url
   }, [])
 
-  const play = useCallback(async () => {
+  const play = useCallback(async (signal?: AbortSignal) => {
     const audio = audioRef.current
-    if (!audio || !currentIdRef.current) return false
+    if (!audio || !currentIdRef.current || signal?.aborted) return false
+    const trackId = currentIdRef.current
+    const attempt = ++playAttemptRef.current
+    const ownsAttempt = () => audioRef.current === audio && currentIdRef.current === trackId && playAttemptRef.current === attempt
+    let cancel: (() => void) | undefined
 
     wantsToPlayRef.current = true
-    setError(null)
+    updateError(null)
     try {
-      await audio.play()
-      return true
+      const started = audio.play()
+      if (signal) {
+        const cancelled = new Promise<never>((_, reject) => {
+          cancel = () => {
+            if (ownsAttempt()) {
+              wantsToPlayRef.current = false
+              audio.pause()
+              updateStatus(audio.error ? "error" : "paused")
+              updateError("Playback timed out. Press Play on the laptop.")
+            }
+            reject(new DOMException("Playback cancelled", "AbortError"))
+          }
+          signal.addEventListener("abort", cancel, { once: true })
+          if (signal.aborted) cancel()
+        })
+        await Promise.race([started, cancelled])
+      } else {
+        await started
+      }
+      return ownsAttempt() && !audio.paused
     } catch (err) {
       // A newer pause() or track change interrupted this request; that action owns the state.
       if (err instanceof DOMException && err.name === "AbortError") return false
+      if (!ownsAttempt()) return false
       wantsToPlayRef.current = false
-      setStatus(audio.error ? "error" : "paused")
-      setError(describePlayError(err))
+      updateStatus(audio.error ? "error" : "paused")
+      updateError(describePlayError(err))
       return false
+    } finally {
+      if (cancel) signal?.removeEventListener("abort", cancel)
     }
-  }, [])
+  }, [updateError, updateStatus])
 
   const pause = useCallback(() => {
     wantsToPlayRef.current = false
-    audioRef.current?.pause()
-  }, [])
+    playAttemptRef.current++
+    const audio = audioRef.current
+    if (!audio || !currentIdRef.current) return false
+    audio.pause()
+    if (statusRef.current !== "error") updateStatus("paused")
+    return audio.paused
+  }, [updateStatus])
 
   const togglePlay = useCallback(() => {
     if (audioRef.current && !audioRef.current.paused) pause()
@@ -105,57 +149,82 @@ export function useAudioPlayer() {
   }, [play, pause])
 
   const loadTrack = useCallback(
-    (track: Track, autoplay: boolean) => {
+    async (track: Track, autoplay: boolean, signal?: AbortSignal) => {
       const audio = audioRef.current
-      if (!audio) return
+      if (!audio || signal?.aborted) return false
 
+      playAttemptRef.current++
+      metadataIdRef.current = null
       currentIdRef.current = track.id
       setCurrentTrackId(track.id)
       setCurrentTime(0)
-      setError(null)
+      updateError(null)
+      updateStatus("paused")
       audio.src = urlFor(track)
 
       if (autoplay) {
-        void play()
+        return play(signal)
       } else {
         wantsToPlayRef.current = false
-        setStatus("paused")
+        return true
       }
     },
-    [play, urlFor],
+    [play, urlFor, updateError, updateStatus],
   )
 
   const stepTrack = useCallback(
-    (offset: number) => {
+    (offset: number, signal?: AbortSignal) => {
       const list = tracksRef.current
-      if (list.length === 0) return
+      if (list.length === 0) return Promise.resolve(false)
       const index = list.findIndex((track) => track.id === currentIdRef.current)
       const nextIndex = (Math.max(index, 0) + offset + list.length) % list.length
-      loadTrack(list[nextIndex], wantsToPlayRef.current)
+      return loadTrack(list[nextIndex], wantsToPlayRef.current, signal)
     },
     [loadTrack],
   )
 
-  const next = useCallback(() => stepTrack(1), [stepTrack])
+  const next = useCallback((signal?: AbortSignal) => stepTrack(1, signal), [stepTrack])
   const previous = useCallback(() => stepTrack(-1), [stepTrack])
 
   const selectTrack = useCallback(
     (trackId: string) => {
       const track = tracksRef.current.find((item) => item.id === trackId)
-      if (track) loadTrack(track, wantsToPlayRef.current)
+      if (track) void loadTrack(track, wantsToPlayRef.current)
     },
     [loadTrack],
   )
 
-  const seek = useCallback((seconds: number) => {
+  const seek = useCallback((seconds: number, expectedTrackId?: string) => {
     const audio = audioRef.current
-    if (!audio || !currentIdRef.current || !Number.isFinite(seconds)) return
+    if (!audio || !currentIdRef.current || !Number.isFinite(seconds)) return false
+    if (expectedTrackId !== undefined && currentIdRef.current !== expectedTrackId) return false
     // Seek only once this audio element has loaded the current track's metadata.
-    if (audio.readyState === 0 || !Number.isFinite(audio.duration) || audio.duration <= 0) return
+    if (metadataIdRef.current !== currentIdRef.current || audio.readyState === 0 || !Number.isFinite(audio.duration) || audio.duration <= 0) return false
 
     const position = Math.max(0, Math.min(seconds, audio.duration))
-    audio.currentTime = position
-    setCurrentTime(position)
+    try {
+      audio.currentTime = position
+      setCurrentTime(position)
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
+  // Read the live element/refs after an operation, before React's next render.
+  const getPlaybackState = useCallback((): PlayerState => {
+    const audio = audioRef.current
+    const track = tracksRef.current.find((item) => item.id === currentIdRef.current)
+    const ms = (seconds: number) => Number.isFinite(seconds) ? Math.max(0, Math.min(MAX_POSITION_MS, Math.round(seconds * 1000))) : 0
+    const durationMs = ms(track?.duration ?? 0)
+    return {
+      trackId: track?.id ?? null,
+      title: Array.from(track?.title ?? "").slice(0, 512).join(""),
+      status: track ? statusRef.current : "idle",
+      positionMs: Math.min(durationMs, ms(audio?.currentTime ?? 0)),
+      durationMs,
+      error: errorRef.current === null ? null : Array.from(errorRef.current).slice(0, 512).join(""),
+    }
   }, [])
 
   const setVolume = useCallback((value: number) => {
@@ -207,17 +276,17 @@ export function useAudioPlayer() {
         if (added.length > 0) {
           tracksRef.current = [...tracksRef.current, ...added]
           setTracks(tracksRef.current)
-          if (!currentIdRef.current) loadTrack(added[0], false)
+          if (!currentIdRef.current) void loadTrack(added[0], false)
         }
         if (failed.length > 0) {
-          setError(`Couldn't read: ${failed.join(", ")}`)
+          updateError(`Couldn't read: ${failed.join(", ")}`)
         }
       })
 
       importQueueRef.current = batch.catch(() => undefined)
       return batch
     },
-    [loadTrack],
+    [loadTrack, updateError],
   )
 
   useEffect(() => {
@@ -225,39 +294,45 @@ export function useAudioPlayer() {
     audio.preload = "auto"
     audio.volume = volumeRef.current / 100
     audioRef.current = audio
+    metadataIdRef.current = null
     const urls = urlsRef.current
 
     const handlePlaying = () => {
-      setStatus("playing")
-      setError(null)
+      updateStatus("playing")
+      updateError(null)
     }
     const handlePause = () => {
-      setStatus((prev) => (prev === "error" ? prev : "paused"))
+      if (statusRef.current !== "error") updateStatus("paused")
     }
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const handleMetadata = () => {
+      const id = currentIdRef.current
+      if (id && audio.currentSrc === urlsRef.current.get(id)) metadataIdRef.current = id
+    }
     const handleError = () => {
       if (!audio.getAttribute("src")) return
       wantsToPlayRef.current = false
-      setStatus("error")
-      setError("This file can't be played.")
+      updateStatus("error")
+      updateError("This file can't be played.")
     }
     // Play the queue in order and stop after the last track.
     const handleEnded = () => {
       const list = tracksRef.current
       const index = list.findIndex((track) => track.id === currentIdRef.current)
       if (index >= 0 && index < list.length - 1) {
-        loadTrack(list[index + 1], true)
+        void loadTrack(list[index + 1], true)
       } else {
         wantsToPlayRef.current = false
         audio.currentTime = 0
         setCurrentTime(0)
-        setStatus("paused")
+        updateStatus("paused")
       }
     }
 
     audio.addEventListener("playing", handlePlaying)
     audio.addEventListener("pause", handlePause)
     audio.addEventListener("timeupdate", handleTimeUpdate)
+    audio.addEventListener("loadedmetadata", handleMetadata)
     audio.addEventListener("error", handleError)
     audio.addEventListener("ended", handleEnded)
 
@@ -266,23 +341,26 @@ export function useAudioPlayer() {
     if (current) {
       audio.src = urlFor(current)
       wantsToPlayRef.current = false
-      setStatus("paused")
+      updateStatus("paused")
     }
 
     return () => {
       audio.removeEventListener("playing", handlePlaying)
       audio.removeEventListener("pause", handlePause)
       audio.removeEventListener("timeupdate", handleTimeUpdate)
+      audio.removeEventListener("loadedmetadata", handleMetadata)
       audio.removeEventListener("error", handleError)
       audio.removeEventListener("ended", handleEnded)
       audio.pause()
       audio.removeAttribute("src")
       audio.load()
       audioRef.current = null
+      metadataIdRef.current = null
+      playAttemptRef.current++
       urls.forEach((url) => URL.revokeObjectURL(url))
       urls.clear()
     }
-  }, [loadTrack, urlFor])
+  }, [loadTrack, urlFor, updateStatus, updateError])
 
   const currentTrack = tracks.find((track) => track.id === currentTrackId) ?? null
 
@@ -304,5 +382,6 @@ export function useAudioPlayer() {
     seek,
     setVolume,
     changeVolume,
+    getPlaybackState,
   }
 }

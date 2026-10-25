@@ -5,6 +5,7 @@ import type React from "react"
 import { useState, useRef } from "react"
 import { Play, Pause, SkipForward, SkipBack, Volume2, Plus } from "lucide-react"
 import { useAudioPlayer } from "@/hooks/use-audio-player"
+import { usePlayerSession } from "@/hooks/use-player-session"
 
 // Degrees of wheel rotation per 1% of volume: one full turn covers the whole range.
 const DEGREES_PER_VOLUME_STEP = 3.6
@@ -40,6 +41,8 @@ function AddSongItem({ label, onFiles }: { label: string; onFiles: (files: File[
 }
 
 export default function Player() {
+  const audioPlayer = useAudioPlayer()
+  const remote = usePlayerSession(audioPlayer)
   const {
     tracks,
     currentTrack,
@@ -55,7 +58,7 @@ export default function Player() {
     seek,
     setVolume,
     changeVolume,
-  } = useAudioPlayer()
+  } = audioPlayer
   const [menuActive, setMenuActive] = useState(true)
   const [allSongScreen, setAllSongsScreen] = useState(false)
   const wheelGestureRef = useRef<{ pointerId: number; angle: number; carry: number } | null>(null)
@@ -286,7 +289,7 @@ export default function Player() {
             aria-label="Next track"
             disabled={!hasTrack}
             className={`absolute top-1/2 right-[20px] sm:right-[30px] transform -translate-y-1/2 ${wheelButton}`}
-            onClick={next}
+            onClick={() => { void next() }}
           >
             <SkipForward size={20} />
           </button>
@@ -296,7 +299,7 @@ export default function Player() {
             aria-label="Previous track"
             disabled={!hasTrack}
             className={`absolute top-1/2 left-[20px] sm:left-[30px] transform -translate-y-1/2 ${wheelButton}`}
-            onClick={previous}
+            onClick={() => { void previous() }}
           >
             <SkipBack size={20} />
           </button>
@@ -305,6 +308,32 @@ export default function Player() {
             <Volume2 size={16} />
             <span className="text-xs">{volume}%</span>
           </div>
+        </div>
+
+        <div className="mx-4 mb-5 space-y-2 text-xs text-gray-700">
+          <button
+            type="button"
+            disabled={!remote.canCreate}
+            onClick={() => { void remote.create() }}
+            className={`rounded bg-blue-500 px-3 py-2 text-white disabled:opacity-50 ${focusRing}`}
+          >
+            {remote.status === "creating" ? "Создание…" : "Создать пульт"}
+          </button>
+          <p role="status">{{ idle: "Пульт не создан", creating: "Создание сессии", syncing: "Подключение плеера", connected: "Плеер синхронизирован", retrying: "Нет связи — повторяем", ended: "Сессия завершена" }[remote.status]}</p>
+          {remote.error && <p role="alert" className="text-red-700">{remote.error}</p>}
+          {remote.remoteUrl && (
+            <label className="block">
+              Ссылка для телефона (выделите и скопируйте):
+              <input
+                aria-label="Ссылка пульта"
+                readOnly
+                value={remote.remoteUrl}
+                onFocus={(event) => event.currentTarget.select()}
+                className={`mt-1 w-full rounded border border-gray-300 bg-white p-2 ${focusRing}`}
+              />
+            </label>
+          )}
+          <p>Сначала запустите музыку кнопкой Play на ноутбуке. Для телефона откройте плеер по LAN-адресу ноутбука.</p>
         </div>
       </div>
     </div>

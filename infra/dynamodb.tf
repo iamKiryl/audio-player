@@ -4,6 +4,11 @@ resource "aws_dynamodb_table" "player" {
   read_capacity  = 1
   write_capacity = 1
 
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
   hash_key  = "pk"
   range_key = "sk"
 

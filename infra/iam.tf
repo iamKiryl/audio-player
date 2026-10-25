@@ -21,7 +21,7 @@ resource "aws_iam_role_policy" "create_session_dynamodb" {
     Version = "2012-10-17"
     Statement = [{
       Effect   = "Allow"
-      Action   = "dynamodb:PutItem"
+      Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem"]
       Resource = aws_dynamodb_table.player.arn
     }]
   })

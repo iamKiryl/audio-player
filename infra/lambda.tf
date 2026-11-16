@@ -1,6 +1,6 @@
 resource "aws_cloudwatch_log_group" "create_session" {
   name              = "/aws/lambda/audio-player-create-session"
-  retention_in_days = 3
+  retention_in_days = 14
 }
 
 resource "aws_iam_role_policy" "create_session_logs" {
